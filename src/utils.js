@@ -1,7 +1,14 @@
+/* global Promise */
+
+var fs = require('fs');
+var path = require('path');
+
 module.exports = {
     indent: indent,
     stringContains: stringContains,
-    diaStrip: diaStrip
+    diaStrip: diaStrip,
+    writeFile: writeFile,
+    copyFile: copyFile
 };
 
 function indent(depth, baseDepth, multip, ch, empty) {
@@ -112,4 +119,22 @@ function diaStrip(str) {
     });
 
     return str;
+}
+
+function writeFile(data, fname, dir) {
+    return new Promise((resolve, reject) => fs.writeFile(path.join(dir, fname), data, err => {
+        if (err) reject('Writing content file failed: ' + err)
+        resolve(fname);
+    }));
+}
+
+function copyFile(srcDir, fname, destDir) {
+    return new Promise((resolve, reject) => {
+        var rs = fs.createReadStream(path.join(srcDir, fname));
+        var ws = fs.createWriteStream(path.join(destDir, fname));
+        rs.on('error', err => reject('File reading failed: ' + err));
+        ws.on('error', err => reject('File writing failed: ' + err));
+        ws.on('finish', () => resolve(fname));
+        rs.pipe(ws);
+    });
 }

@@ -11,10 +11,13 @@ var cmd = process.argv[2]
 var idir = process.argv[3];
 var odir = sanitize(process.argv[4] || idir + '.web');
 
+var clientDir = path.join(__dirname, 'client');
+
 var conf = {
     width: 700,
     quality: 80,
-    debug: true
+    debug: true,
+    template: 'index.html'
 };
 var EOL = "\n";
 var DEPTH = 2;
@@ -99,16 +102,10 @@ function prepareImages() {
     })
     .then(cont => {
         log('Image preparation done!');
-        return new Promise((resolve, reject) => {
-            fs.writeFile(path.join(odir, 'content.json'), JSON.stringify(cont), err => {
-                if (err) reject('Writing content file failed: ' + err)
-                log('Written content file!')
-                resolve(cont);
-            });
-        })
+        return utils.writeFile(JSON.stringify(cont), 'content.json', odir);
     })
     .then(cont => {
-        log('content:', util.inspect(cont, { showHidden: false, depth: null }));
+        log('Content:', util.inspect(cont, { showHidden: false, depth: null }));
         return cont;
     })
     .catch(err => {
@@ -126,19 +123,15 @@ function generateList(cont) {
         return cont
     })
     .then(cont => getListEntryHtml(cont.cont))
-    .then(html => {
-        log('Image list prepared!');
-        return new Promise((resolve, reject) => {
-            fs.writeFile(path.join(odir, 'list.html'), html, err => {
-                if (err) reject('Writing content file failed: ' + err)
-                log('Written content file!')
-                resolve(html);
-            });
-        })
-    })
-    .then(html => {
-        log("html:\n" + html);
-        return html;
+    .then(html => getPageHtml(html))
+    .then(html => Promise.all([
+        utils.writeFile(html, 'list.html', odir),
+        utils.copyFile(clientDir, 'index.css', odir),
+        utils.copyFile(clientDir, 'index.js', odir)
+    ]))
+    .then(res => {
+        log('Generated files:', res);
+        return res[0];
     })
     .catch(err => {
         console.log(err);
@@ -161,6 +154,22 @@ function getListEntryHtml(cont, dir, depth) {
     });
 
     return html;
+}
+
+function getPageHtml(htmlPart, pageFname) {
+    pageFname = pageFname || conf.template;
+    return new Promise((resolve, reject) => {
+        var pageFile = path.join(clientDir, pageFname);
+        fs.readFile(pageFile, 'utf-8', (err, data) => {
+            if (err) reject(err);
+            else if (!data) reject('File empty: ' + pageFile);
+            resolve(data);
+        });
+    })
+    .then((pageHtml) => {
+        return pageHtml.substring(0, pageHtml.search('[ ]*</body>')) + htmlPart
+            + pageHtml.substr(pageHtml.search('[ ]*</body>'));
+    });
 }
 
 function generateGallery(cont) {
