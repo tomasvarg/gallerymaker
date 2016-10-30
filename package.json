@@ -1,17 +1,16 @@
 {
   "name": "gallerymaker",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A static html gallery maker",
   "keywords": [
     "gallery",
     "images",
     "static"
   ],
-  "main": "src/index.js",
-  "scripts": {
-    "serve": "node scripts/server.dev.js",
-    "test": "node test/index.js"
+  "engines": {
+    "node": ">=4"
   },
+  "main": "src/index.js",
   "eslintConfig": {
     "env": {
       "browser": true,

@@ -26,7 +26,7 @@ if (!conf.templates.index) conf.templates.index = 'index.html';
 if (!conf.assets) conf.assets = {}; // clientDir
 if (!conf.assets.common) conf.assets.common = ['index.js', 'index.css'];
 if (!conf.ignored_files || !conf.ignored_files.push) conf.ignored_files = [];
-if (conf.debug === undefined) conf.debug = true;
+if (conf.debug === undefined) conf.debug = false;
 
 for (var ak in conf.assets) conf.ignored_files.push.apply(conf.ignored_files, conf.assets[ak]);
 for (var fk in conf.fnames) conf.ignored_files.push(conf.fnames[fk]);
@@ -43,7 +43,7 @@ var logi = function () {
 var ind = depth => utils.indent(depth, DEPTH);
 
 var cmds = {
-    prepare: () => prepareImages().then(copyAssets('common')),
+    prepare: () => prepareImages().then(() => copyAssets('common')),
     list: generateList,
     gallery: generateGallery,
     all: () => prepareImages()
@@ -53,7 +53,7 @@ var cmds = {
             generateList(cont),
             generateGallery(cont)
         ]))
-        .then(res => log('All tasks finished! Files:', res.reduce((c, n) => c.concat(n), []).join(', ')))
+        .then(res => log('All tasks done! Files:', res.reduce((c, n) => c.concat(n), []).join(', ')))
 };
 
 if (!cmd || !idir) {
@@ -88,7 +88,7 @@ else {
 }
 
 function prepareImages() {
-    log('Preparing images - recreating gallery directories with sanitized names and resized images')
+    log('Preparing content')
 
     return mirrorDirTree(idir, (file, srcDir, destDir) => {
         var fname = sanitize(file);
@@ -100,14 +100,14 @@ function prepareImages() {
         .toFile(path.join(destDir, fname))
         .then(() => ({ file: fname, name: name }))
         .catch(sharpErr => utils.copyFile(srcDir, file, destDir, fname)
-            .then(() => ({ file: fname, name: name, error: '' + sharpErr }))
+            .then(() => ({ file: fname, name: name, warn: '' + sharpErr }))
             .catch(writeErr => ({ file: '', name: name, error: writeErr }))
         );
     })
     .then(cont => utils.writeFile(cont, 'content.json', odir))
     .then(cont => {
-        //log('Preparing images finished. Content:', util.inspect(cont, { showHidden: false, depth: null }));
-        log('Preparing images finished:', ['content.json'].concat(cont.cont.map(c => c.dir)).join(', '));
+        //log('Preparing images done. Content:', util.inspect(cont, { showHidden: false, depth: null }));
+        console.log('Preparing content done:', ['content.json'].concat(cont.cont.map(c => c.dir)).join(', '));
         return cont;
     });
 }
@@ -122,7 +122,7 @@ function generateList(cont) {
         utils.writeFile(html, conf.fnames.list, odir, true)
     ]))
     .then(res => {
-        log('Generating file list finished:', res.join(', '));
+        console.log('Generating file list done:', res.join(', '));
         return res;
     });
 }
@@ -137,7 +137,7 @@ function generateGallery(cont) {
         utils.writeFile(html, conf.fnames.gallery, odir, true)
     ]))
     .then(files => {
-        log('Generating gallery finished:', files.join(', '));
+        console.log('Generating gallery done:', files.join(', '));
         return files;
     });
 }
@@ -148,7 +148,7 @@ function copyAssets(asskey) {
 
     return Promise.all(fnames.map(fname => utils.copyFile(clientDir, fname, odir)))
     .then(files => {
-        log('Copying', asskey, 'assets finished:', files.join(', '));
+        console.log('Copying', asskey, 'assets done:', files.join(', '));
         return files;
     });
 }
@@ -187,6 +187,7 @@ function mirrorDirTree(dir, cb, nomkdir, depth) {
     .then(items => {
         logi(depth, '[dir]', dir);
         items.forEach(item => logi(depth + 1, item.error ? '[error] ' + item.file + ' ' + item.error
+            : item.warn ? '[warn] ' + item.file + ' ' + item.warn
             : item.file ? '[file] ' + item.file : item.dir ? '[dir] ' + item.dir : item));
         return { dir: destDir.replace(/^.*\//, ''), name: dir.replace(/^.*\//, ''), cont: items };
     });
