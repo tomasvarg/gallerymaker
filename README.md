@@ -39,4 +39,4 @@ Image resizing done by [sharp](http://sharp.dimens.io/) ([github](https://github
     - use some lightbox on the prepared directory
 - further development
     - integration with other projects (iframe? ajax? web component? Polymer?)
-    - config.json support (for specifying conversion settings)
+    - ~~config.json support (for specifying conversion settings)~~

@@ -121,20 +121,21 @@ function diaStrip(str) {
     return str;
 }
 
-function writeFile(data, fname, dir) {
-    return new Promise((resolve, reject) => fs.writeFile(path.join(dir, fname), data, err => {
+function writeFile(data, fname, dir, returnFileName) {
+    var serialized = typeof data === 'object' ? JSON.stringify(data) : data;
+    return new Promise((resolve, reject) => fs.writeFile(path.join(dir, fname), serialized, err => {
         if (err) reject('Writing content file failed: ' + err)
-        resolve(fname);
+        resolve(returnFileName ? fname : data);
     }));
 }
 
-function copyFile(srcDir, fname, destDir) {
+function copyFile(sdir, sfname, ddir, dfname) {
     return new Promise((resolve, reject) => {
-        var rs = fs.createReadStream(path.join(srcDir, fname));
-        var ws = fs.createWriteStream(path.join(destDir, fname));
+        var rs = fs.createReadStream(path.join(sdir, sfname));
+        var ws = fs.createWriteStream(path.join(ddir, dfname || sfname));
         rs.on('error', err => reject('File reading failed: ' + err));
         ws.on('error', err => reject('File writing failed: ' + err));
-        ws.on('finish', () => resolve(fname));
+        ws.on('finish', () => resolve(dfname || sfname));
         rs.pipe(ws);
     });
 }
