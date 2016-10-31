@@ -1,13 +1,13 @@
 # Gallery Maker for Node
 
-A Node based static html gallery maker.
+Node based static html gallery maker.
 
 ## Usage
 
 ```
 Usage: gallerymaker <command> <source dir> [<dest dir>]
 
-  <dest dir> will be sanitized <source dir> + ".web" suffix if not provided.
+  <dest dir> defaults to sanitized <source dir> + ".web" if not provided.
 
 Commands:
   prepare       Prepares gallery file structure based on the <source dir>
@@ -30,9 +30,12 @@ Commands:
     - ~~list the images (text based)~~
     - provide &lt;img/> tag literals for copy-pasting
 - create the gallery
-    - list the images (thumbnail based)
+    - ~~list the images (thumbnail based)~~
+    - generate actual thumbnails
+    - list non-image entries of a dir first so it's clear where they belong
     - use some lightbox on the prepared directory
 - further development
+    - ~~style the stuff a bit~~
     - integration with other projects (iframe? ajax? web component? Polymer?)
     - ~~config.json support (for specifying conversion settings)~~
 

@@ -18,6 +18,8 @@ try { conf = require(path.join(__dirname, '..', 'config.json')); }
 catch (e) { conf = {}; }
 if (!conf.width) conf.width = 700;
 if (!conf.quality) conf.quality = 80;
+if (!conf.thumb_width) conf.thumb_width = 100;
+if (!conf.thumb_quality) conf.thumb_quality = 70;
 if (!conf.fnames) conf.fnames = {}; // odir
 if (!conf.fnames.list) conf.fnames.list = 'list.html';
 if (!conf.fnames.gallery) conf.fnames.gallery = 'gallery.html';
@@ -34,6 +36,7 @@ for (var fk in conf.fnames) conf.ignored_files.push(conf.fnames[fk]);
 var EOL = conf.eol ? conf.eol : "\n";
 var DEPTH = conf.html_init_depth ? conf.html_init_depth : 2;
 var SORT_DESC = conf.sort_desc ? conf.sort_desc : true;
+var IMG_TYPES = ['jpeg', 'jpg', 'png', 'gif'];
 
 var log = conf.debug ? console.log.bind(console) : function () {};
 var logi = function () {
@@ -60,7 +63,7 @@ if (!cmd || !idir) {
     var help = [
         'Usage: gallerymaker <command> <source dir> [<destination dir>]',
         '',
-        '  <dest dir> will be sanitized <source dir> + ".web" suffix if not provided.',
+        '  <dest dir> defaults to sanitized <source dir> + ".web" if not provided.',
         '',
         'Commands:',
         '  prepare       Prepares gallery file structure based on the <source dir>',
@@ -93,15 +96,17 @@ function prepareImages() {
     return mirrorDirTree(idir, (file, srcDir, destDir) => {
         var fname = sanitize(file);
         var name = file.replace(/[.][^.]*$/, '');
+        var extMatch = file.match(/^.*[.]([^.]*)$/);
+        var ext = extMatch && extMatch[1] ? extMatch[1].toLowerCase() : null;
 
         return sharp(path.join(srcDir, file))
         .resize(conf.width)
         .quality(conf.quality)
         .toFile(path.join(destDir, fname))
-        .then(() => ({ file: fname, name: name }))
+        .then(() => ({ file: fname, ext: ext, name: name }))
         .catch(sharpErr => utils.copyFile(srcDir, file, destDir, fname)
-            .then(() => ({ file: fname, name: name, warn: '' + sharpErr }))
-            .catch(writeErr => ({ file: '', name: name, error: writeErr }))
+            .then(() => ({ file: fname, ext: ext, name: name, warn: '' + sharpErr }))
+            .catch(writeErr => ({ file: '', ext: ext, name: name, error: writeErr }))
         );
     })
     .then(cont => utils.writeFile(cont, 'content.json', odir))
@@ -228,25 +233,47 @@ function getPageHtml(htmlPart, pageFname) {
 
 function getListEntryHtml(cont, dir, depth) {
     depth = depth === undefined ? 0 : depth;
-
+    var rootClass = depth === 0 ? ' list' : '';
     var html = '';
+
     cont.forEach(item => {
         var key = item.dir ? 'dir' : 'file';
-        html += ind(depth) + '<div class="' + key + '" data-level="' + depth + '">' + EOL
-            + (item.dir ? ind(depth +1) + '<div class="name">' + (item.name || item[key]) + '</div>' + EOL : '')
+        html += ind(depth) + '<div class="' + key + rootClass + '" data-level="' + depth + '"'
+                + (key === 'file' && item.name ? ' title="' + item.name + '"' : '') + '>' + EOL
+            + (item.dir ? ind(depth +1) + '<div class="name"'
+                + (item.name ? ' title="' + item.name + '"' : '') + '>' + item[key] + '</div>' + EOL : '')
             + (item.cont ? getListEntryHtml(item.cont, dir ? path.join(dir, item.dir) : item.dir, depth +1)
                 : ind(depth +1) + '<a href="' + (dir ? path.join(dir, item[key]) : item[key]) + '">'
-                    + (item.name || item[key]) + '</a>' + EOL)
+                    + item[key] + '</a>' + EOL)
             + ind(depth) + '</div>' +  EOL
     });
 
     return html;
 }
 
-function getGalleryEntryHtml(cont) {
-
+function getGalleryEntryHtml(cont, dir, depth) {
+    depth = depth === undefined ? 0 : depth;
+    var rootClass = depth === 0 ? ' gallery' : '';
+    var htag = depth + 1 <= 6 ? 'h' + (depth + 1) : 'div'
     var html = '';
+
     cont.forEach(item => {
+        var key = item.dir ? 'dir' : 'file';
+        var isImg = IMG_TYPES.indexOf(item.ext) !== -1;
+        var className = (isImg ? 'img' : key) + rootClass;
+
+        html += ind(depth) + '<div class="' + className + '" data-level="' + depth + '">' + EOL
+            + (item.dir ? ind(depth +1) + '<' + htag + ' class="name">' + (item.name || item[key])
+                + '</' + htag + '>' + EOL : '')
+            + (item.cont ? getGalleryEntryHtml(item.cont, dir ? path.join(dir, item.dir) : item.dir, depth +1)
+                : ind(depth +1) + '<a href="' + (dir ? path.join(dir, item[key]) : item[key]) + '"'
+                    + ' title="' + (item.name || item[key]) + '">'
+                    + (isImg
+                        ? '<img src="' + (dir ? path.join(dir, item[key]) : item[key]) + '"'
+                            + ' width="' + conf.thumb_width + '"/>'
+                        : (item.name || item[key]) + (item.ext ? ' [' + item.ext + ']' : ''))
+                + '</a>' + EOL)
+            + ind(depth) + '</div>' + EOL
     });
 
     return html;

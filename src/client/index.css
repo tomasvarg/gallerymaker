@@ -1,2 +1,25 @@
-body        { font-family: Tahoma, sans-serif; margin: 0; }
-h1          { font-size: 24px; padding-left: 20px; }
+body        { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+              font-size: 16px; color: #333; padding: 30px; margin: 0; }
+body > *    { margin: 0 auto; }
+
+h1          { font-size: 36px; font-weight: bold; }
+h2          { font-size: 24px; font-weight: normal; }
+h3          { font-size: 20px; font-weight: normal; }
+h4          { font-size: 16px; font-weight: normal; }
+h5          { font-size: 16px; font-weight: normal; }
+h6          { font-size: 16px; font-weight: normal; }
+
+a           { color: #0A8; text-decoration: none; }
+a:hover,
+a:focus     { color: #086; }
+
+.list .dir          { margin-top: 15px; margin-bottom: 15px; }
+.list [data-level]  { margin-left: 15px; }
+
+.gallery,
+.gallery .dir       { margin-top: 40px; margin-bottom: 15px; text-align: center; }
+.gallery:first-of-type  { margin-top: 0; }
+.gallery .name      { color: #0A8; margin: 15px auto; }
+.gallery .file      { margin-top: 10px; margin-bottom: 10px; }
+.gallery .img       { display: inline-block; }
+.gallery .img img   { border-radius: 4px; }
