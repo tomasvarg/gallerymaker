@@ -31,9 +31,11 @@ Commands:
     - provide &lt;img/> tag literals for copy-pasting
 - create the gallery
     - ~~list the images (thumbnail based)~~
-    - generate actual thumbnails
-    - list non-image entries of a dir first so it's clear where they belong
-    - use some lightbox on the prepared directory
+    - generate & use actual thumbnails
+    - ~~group entries of the same level beginning with four numbers (a year) together & sort them desc~~
+    - ~~list files before directories (on the same level)~~
+    - list non-image files before images
+    - ~~use some lightbox on the prepared directory~~
 - further development
     - ~~style the stuff a bit~~
     - integration with other projects (iframe? ajax? web component? Polymer?)
@@ -41,4 +43,5 @@ Commands:
 
 ## Attributions
 
-Image processing done by [sharp](http://sharp.dimens.io/) ([github](https://github.com/lovell/sharp)).
+Image processing done by [sharp](http://sharp.dimens.io/) ([github](https://github.com/lovell/sharp)).  
+Gallery frontend uses [jsOnlyLightbox](http://jslightbox.felixhagspiel.de/) ([github](https://github.com/felixhagspiel/jsOnlyLightbox)).

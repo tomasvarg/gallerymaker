@@ -28,6 +28,7 @@
   "author": "Tomas Varga <tomas.varga.cz@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "jsonlylightbox": "git+https://github.com/felixhagspiel/jsonlylightbox.git",
     "sharp": "^0.16.2"
   }
 }

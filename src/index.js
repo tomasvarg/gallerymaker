@@ -12,30 +12,42 @@ var idir = process.argv[3];
 var odir = sanitize(process.argv[4] || idir + '.web');
 
 var clientDir = path.join(__dirname, 'client');
+var nodeModDir = path.join(__dirname, '..', 'node_modules');
 
 var conf;
 try { conf = require(path.join(__dirname, '..', 'config.json')); }
 catch (e) { conf = {}; }
-if (!conf.width) conf.width = 700;
+if (!conf.width) conf.width = 800;
 if (!conf.quality) conf.quality = 80;
 if (!conf.thumb_width) conf.thumb_width = 100;
 if (!conf.thumb_quality) conf.thumb_quality = 70;
+if (!conf.list) conf.list = {};
+if (!conf.list.sort_desc) conf.list.sort_desc = false;
+if (!conf.gallery) conf.gallery = {};
+if (!conf.gallery.years_desc) conf.gallery.years_desc = true;
+if (!conf.gallery.files_first) conf.gallery.files_first = true;
 if (!conf.fnames) conf.fnames = {}; // odir
 if (!conf.fnames.list) conf.fnames.list = 'list.html';
 if (!conf.fnames.gallery) conf.fnames.gallery = 'gallery.html';
 if (!conf.templates) conf.templates = {}; // clientDir
 if (!conf.templates.index) conf.templates.index = 'index.html';
-if (!conf.assets) conf.assets = {}; // clientDir
-if (!conf.assets.common) conf.assets.common = ['index.js', 'index.css'];
+if (!conf.assets) conf.assets = {};
+if (!conf.assets.common) conf.assets.common = [
+    { sdir: clientDir, fname: 'index.js', ddir: odir + '/lib' },
+    { sdir: clientDir, fname: 'index.css', ddir: odir + '/lib' },
+];
+if (!conf.assets.gallery) conf.assets.gallery = [
+    { sdir: nodeModDir + '/jsonlylightbox/js', fname: 'lightbox.js', ddir: odir + '/lib' },
+    { sdir: nodeModDir + '/jsonlylightbox/css', fname: 'lightbox.css', ddir: odir + '/lib' },
+];
 if (!conf.ignored_files || !conf.ignored_files.push) conf.ignored_files = [];
 if (conf.debug === undefined) conf.debug = false;
 
-for (var ak in conf.assets) conf.ignored_files.push.apply(conf.ignored_files, conf.assets[ak]);
+for (var ak in conf.assets) conf.ignored_files.push.apply(conf.ignored_files, conf.assets[ak].map(a => a.fname));
 for (var fk in conf.fnames) conf.ignored_files.push(conf.fnames[fk]);
 
 var EOL = conf.eol ? conf.eol : "\n";
 var DEPTH = conf.html_init_depth ? conf.html_init_depth : 2;
-var SORT_DESC = conf.sort_desc ? conf.sort_desc : true;
 var IMG_TYPES = ['jpeg', 'jpg', 'png', 'gif'];
 
 var log = conf.debug ? console.log.bind(console) : function () {};
@@ -54,7 +66,8 @@ var cmds = {
             copyAssets('common'),
             ['content.json'].concat(cont.cont.map(c => c.dir)),
             generateList(cont),
-            generateGallery(cont)
+            generateGallery(cont),
+            copyAssets('gallery')
         ]))
         .then(res => log('All tasks done! Files:', res.reduce((c, n) => c.concat(n), []).join(', ')))
 };
@@ -149,9 +162,12 @@ function generateGallery(cont) {
 
 function copyAssets(asskey) {
     log('Copying', asskey, 'assets');
-    var fnames = conf.assets[asskey] ? conf.assets[asskey] : asskey && asskey.map ? asskey : [];
+    var ass = conf.assets[asskey] ? conf.assets[asskey] : asskey && asskey.map ? asskey : [];
 
-    return Promise.all(fnames.map(fname => utils.copyFile(clientDir, fname, odir)))
+    return Promise.all(ass.map(a => {
+        if (!fs.existsSync(a.ddir)) fs.mkdirSync(a.ddir);
+        return utils.copyFile(a.sdir, a.fname, a.ddir);
+    }))
     .then(files => {
         console.log('Copying', asskey, 'assets done:', files.join(', '));
         return files;
@@ -176,7 +192,6 @@ function mirrorDirTree(dir, cb, nomkdir, depth) {
         if (files === undefined) reject('Directory "' + dir +'" does not exist!');
         if (files.length && !fs.existsSync(destDir) && !nomkdir) fs.mkdirSync(destDir);
         if (files.filter) files = files.filter(file => conf.ignored_files.indexOf(file) === -1);
-        if (SORT_DESC) files.reverse();
         resolve(files);
     }))
     .then(files => Promise.all(files.map(file =>
@@ -236,15 +251,18 @@ function getListEntryHtml(cont, dir, depth) {
     var rootClass = depth === 0 ? ' list' : '';
     var html = '';
 
-    cont.forEach(item => {
-        var key = item.dir ? 'dir' : 'file';
+    if (!conf.list.sort_desc)
+        cont.reverse();
+
+    cont.forEach(it => {
+        var key = it.dir ? 'dir' : 'file';
         html += ind(depth) + '<div class="' + key + rootClass + '" data-level="' + depth + '"'
-                + (key === 'file' && item.name ? ' title="' + item.name + '"' : '') + '>' + EOL
-            + (item.dir ? ind(depth +1) + '<div class="name"'
-                + (item.name ? ' title="' + item.name + '"' : '') + '>' + item[key] + '</div>' + EOL : '')
-            + (item.cont ? getListEntryHtml(item.cont, dir ? path.join(dir, item.dir) : item.dir, depth +1)
-                : ind(depth +1) + '<a href="' + (dir ? path.join(dir, item[key]) : item[key]) + '">'
-                    + item[key] + '</a>' + EOL)
+                + (key === 'file' && it.name ? ' title="' + it.name + '"' : '') + '>' + EOL
+            + (it.dir ? ind(depth +1) + '<div class="name"'
+                + (it.name ? ' title="' + it.name + '"' : '') + '>' + it[key] + '</div>' + EOL : '')
+            + (it.cont ? getListEntryHtml(it.cont, dir ? path.join(dir, it.dir) : it.dir, depth +1)
+                : ind(depth +1) + '<a href="' + (dir ? path.join(dir, it[key]) : it[key]) + '">'
+                    + it[key] + '</a>' + EOL)
             + ind(depth) + '</div>' +  EOL
     });
 
@@ -256,22 +274,33 @@ function getGalleryEntryHtml(cont, dir, depth) {
     var rootClass = depth === 0 ? ' gallery' : '';
     var htag = depth + 1 <= 6 ? 'h' + (depth + 1) : 'div'
     var html = '';
+    var rxYear = /^[0-9]{4}/;
 
-    cont.forEach(item => {
-        var key = item.dir ? 'dir' : 'file';
-        var isImg = IMG_TYPES.indexOf(item.ext) !== -1;
+    if (conf.gallery.years_desc)
+        cont = cont.filter(it => rxYear.test(it.name))
+                .concat(cont.filter(it => !rxYear.test(it.name)).reverse());
+
+    if (conf.gallery.files_first)
+        cont = cont.filter(it => it.file).concat(cont.filter(it => !it.file));
+
+    cont.forEach(it => {
+        var key = it.dir ? 'dir' : 'file';
+        var isImg = IMG_TYPES.indexOf(it.ext) !== -1;
         var className = (isImg ? 'img' : key) + rootClass;
 
         html += ind(depth) + '<div class="' + className + '" data-level="' + depth + '">' + EOL
-            + (item.dir ? ind(depth +1) + '<' + htag + ' class="name">' + (item.name || item[key])
-                + '</' + htag + '>' + EOL : '')
-            + (item.cont ? getGalleryEntryHtml(item.cont, dir ? path.join(dir, item.dir) : item.dir, depth +1)
-                : ind(depth +1) + '<a href="' + (dir ? path.join(dir, item[key]) : item[key]) + '"'
-                    + ' title="' + (item.name || item[key]) + '">'
-                    + (isImg
-                        ? '<img src="' + (dir ? path.join(dir, item[key]) : item[key]) + '"'
-                            + ' width="' + conf.thumb_width + '"/>'
-                        : (item.name || item[key]) + (item.ext ? ' [' + item.ext + ']' : ''))
+            + (it.dir ? ind(depth +1) + '<a name="' + it[key] + '"></a>' + EOL : '')
+            + (it.dir ? ind(depth +1) + '<' + htag + ' class="name">' + it.name + '</' + htag + '>' + EOL : '')
+            + (it.cont ? getGalleryEntryHtml(it.cont, dir ? path.join(dir, it.dir) : it.dir, depth +1)
+                : ind(depth +1) + '<a href="' + (dir ? path.join(dir, it[key]) : it[key]) + '"'
+                    + ' title="' + it.name + '">'
+                    + (isImg ? EOL + ind(depth +2)
+                            + '<img src="' + (dir ? path.join(dir, it[key]) : it[key]) + '"'
+                            + ' width="' + conf.thumb_width + '"'
+                            + ' data-jslghtbx data-jslghtbx-group="' + dir + '"'
+                            + ' data-jslghtbx-caption="' + it.name + '"'
+                            + ' />'
+                        : it.name + (it.ext ? ' [' + it.ext + ']' : ''))
                 + '</a>' + EOL)
             + ind(depth) + '</div>' + EOL
     });
